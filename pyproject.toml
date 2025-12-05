@@ -1,0 +1,16 @@
+[project]
+name = "plan-mcp-service"
+version = "0.1.0"
+description = "A Universal Plan Manager MCP Service for managing tasks, habits, and schedules via LLMs."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]",
+]
+
+[project.scripts]
+plan-mcp-service = "plan_mcp_service:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
