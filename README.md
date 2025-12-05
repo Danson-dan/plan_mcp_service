@@ -13,17 +13,27 @@ This service allows AI agents to create, manage, and track any kind of plan—fr
 
 ## Installation
 
-### Option 1: Install via `pip` (Recommended)
-
-If you have this package locally or on PyPI:
+### Option 1: Install from PyPI (Recommended)
 
 ```bash
-pip install .
-# or
 pip install plan-mcp-service
 ```
 
-### Option 2: Run directly with `uv`
+### Option 2: Install from GitHub
+
+```bash
+pip install git+https://github.com/yourusername/plan-mcp-service.git
+```
+
+### Option 3: Install from Source
+
+```bash
+git clone https://github.com/yourusername/plan-mcp-service.git
+cd plan-mcp-service
+pip install -e .
+```
+
+### Option 4: Run directly with `uv`
 
 ```bash
 uv run src/plan_mcp_service/server.py
