@@ -52,53 +52,84 @@ echo ""
 echo "✅ 项目信息已更新"
 echo ""
 
-# 生成提交文本
-cat > submission_text.txt << 'EOF'
-## 服务器信息
-- **名称**: Plan Manager MCP Service
-- **描述**: 通用计划管理MCP服务，支持无限层级的任务管理和时间规划
-- **分类**: Productivity / Task Management
-- **GitHub**: EOF
+# 生成提交标题
+ISSUE_TITLE="SUBMIT MCP SERVER: PLAN MANAGER - Universal Task Planning & Management"
 
-echo "${REPO_URL}" >> submission_text.txt
-echo "" >> submission_text.txt
-echo '- **PyPI**: https://pypi.org/project/plan-mcp-service/' >> submission_text.txt
-echo "" >> submission_text.txt
+# 生成提交内容
+cat > submission_text.md << 'EOF'
 
-cat >> submission_text.txt << 'EOF'
-## 核心功能
-- 8个完整的计划管理工具（create_plan, add_step, create_plan_batch等）
-- 支持树形任务结构和批量操作（21天挑战、一周计划等）
-- SQLite持久化存储，数据安全可靠
-- 完整的状态管理（pending/in_progress/completed/cancelled）
-- 灵活的时间管理（计划时间、截止时间）
-- 支持多种分类（travel/study/habit/work/general）
-- JSON元数据系统，适应各种使用场景
+## 🏷️ 基本信息
 
-## 技术特性
-- 轻量级：基于SQLite，无需外部依赖
-- 高性能：使用FastMCP框架，响应迅速
-- 易扩展：灵活的元数据系统，支持自定义场景
-- 跨平台：支持Windows、macOS、Linux
+- **服务器名称**: Plan Manager MCP Service
+- **简短名称**: plan-mcp-service
+- **MCP类型**: Tools
+- **分类**: Productivity / Task Management / Planning
+- **开发者**: EOF
 
-## 安装方式
+echo "${GITHUB_USERNAME}" >> submission_text.md
+echo "- **许可证**: MIT" >> submission_text.md
+echo "- **MCP协议版本**: MCP (FastMCP)" >> submission_text.md
+echo "" >> submission_text.md
 
-### PyPI安装（推荐）
+cat >> submission_text.md << 'EOF'
+## 📝 描述
+
+一个通用的计划管理MCP服务，支持AI助手帮助用户创建、管理和跟踪各种类型的计划。采用树形结构设计，支持无限层级嵌套，适用于旅行计划、学习计划、习惯养成、工作项目等场景。
+
+## 🛠️ 支持的工具
+
+| 工具名称 | 功能描述 |
+|---------|---------|
+| `create_plan` | 创建顶级计划 |
+| `add_step` | 添加子步骤到现有计划 |
+| `create_plan_batch` | 批量创建包含多步骤的计划 |
+| `list_plans` | 列出顶级计划，支持筛选 |
+| `get_plan_details` | 获取完整计划树结构 |
+| `update_plan_status` | 更新计划状态 |
+| `reschedule_plan` | 重新安排计划时间 |
+| `delete_plan` | 删除计划及其子步骤 |
+
+## 🚀 服务器配置
+
+### 安装方式
+
+#### PyPI安装（推荐）
 ```bash
 pip install plan-mcp-service
 ```
 
-### GitHub安装
+#### GitHub安装
 ```bash
 pip install git+EOF
 
-echo "${REPO_URL}.git" >> submission_text.txt
-echo "" >> submission_text.txt
+echo "${REPO_URL}.git" >> submission_text.md
+echo "" >> submission_text.md
 
-cat >> submission_text.txt << 'EOF'
+cat >> submission_text.md << 'EOF'
 ```
 
-## Claude Desktop配置
+### Claude Desktop 配置
+
+#### 推荐配置（使用uv）
+```json
+{
+  "mcpServers": {
+    "plan-manager": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/plan_mcp_service",
+        "run",
+        "python",
+        "-m",
+        "plan_mcp_service.server"
+      ]
+    }
+  }
+}
+```
+
+#### PyPI安装后的配置
 ```json
 {
   "mcpServers": {
@@ -109,29 +140,61 @@ cat >> submission_text.txt << 'EOF'
 }
 ```
 
-## 使用场景
+## 🎯 核心特性
+
+- ✅ **无限层级**: 树形任务结构，支持Plan -> Step -> Sub-step无限嵌套
+- ✅ **批量操作**: 一次性创建复杂计划（21天挑战、一周计划等）
+- ✅ **状态管理**: pending/in_progress/completed/cancelled四种状态
+- ✅ **时间管理**: 支持计划时间和截止时间（ISO 8601格式）
+- ✅ **灵活元数据**: JSON格式存储自定义数据（预算、地点、资源链接等）
+- ✅ **分类系统**: travel/study/habit/work/general多种预设类别
+- ✅ **持久存储**: SQLite本地数据库，数据安全可靠
+- ✅ **高性能**: 基于FastMCP框架，响应迅速
+
+## 🔗 项目链接
+
+- **GitHub仓库**: EOF
+
+echo "${REPO_URL}" >> submission_text.md
+echo "- **PyPI包**: https://pypi.org/project/plan-mcp-service/" >> submission_text.md
+echo "- **文档**: ${REPO_URL}#readme" >> submission_text.md
+echo "- **许可证**: ${REPO_URL}/blob/main/LICENSE" >> submission_text.md
+echo "" >> submission_text.md
+
+cat >> submission_text.md << 'EOF'
+## 💡 使用场景
+
 - 🗺️ **旅行计划**: 创建包含预算、地点、时间安排的详细旅行计划
-- 📚 **学习计划**: 制定结构化的学习进度和打卡系统
+- 📚 **学习计划**: 制定结构化的学习进度和打卡系统  
 - 🎯 **习惯养成**: 21天挑战或多阶段习惯培养计划
 - 💼 **项目管理**: 工作项目的任务分解和进度跟踪
+- 🏋️ **健身计划**: 运动计划安排和目标管理
 
-## 技术栈
-- Python 3.10+
-- FastMCP (Model Context Protocol)
-- SQLite3 (持久存储)
+## 🛡️ 技术规格
 
-## 许可证
-MIT License - 开源免费使用
+- **编程语言**: Python 3.10+
+- **框架**: FastMCP (Model Context Protocol)
+- **数据库**: SQLite3
+- **依赖**: mcp[cli]>=1.0.0
+- **兼容性**: Claude Desktop, 支持MCP协议的AI助手
+
+## 📝 备注
+
+- 开源项目，MIT许可证
+- 持续维护，欢迎贡献
+- 支持中文和英文
+- 无需API密钥或外部服务依赖
 EOF
 
-echo "📋 已生成提交文本 (submission_text.txt)"
+echo "📋 已生成提交内容 (submission_text.md)"
+echo "📋 Issue标题: ${ISSUE_TITLE}"
 echo ""
 
 echo "🌐 提交步骤："
 echo "1. 访问: https://github.com/chatmcp/mcpso/issues/new/choose"
-echo "2. 选择 'Add MCP Server' 模板"
-echo "3. 复制 submission_text.txt 中的内容并粘贴"
-echo "4. 填写标题: Add Plan Manager MCP Service"
+echo "2. 选择 'Add MCP Server' 或空白模板"
+echo "3. 标题填写: ${ISSUE_TITLE}"
+echo "4. 复制 submission_text.md 中的内容并粘贴到正文"
 echo "5. 提交Issue"
 echo ""
 

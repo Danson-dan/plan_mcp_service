@@ -1,49 +1,78 @@
 # 📋 提交到 mcp.so 的完整方案
 
-## 🎯 提交信息模板
+## 🎯 mcp.so GitHub Issue 提交模板
 
-### 基本信息
+### 📌 标题格式
+```
+SUBMIT MCP SERVER: PLAN MANAGER - Universal Task Planning & Management
+```
+
+### 📋 Issue 内容模板
+
+```markdown
+## 🏷️ 基本信息
+
 - **服务器名称**: Plan Manager MCP Service
-- **英文名称**: plan-mcp-service
-- **分类**: Productivity / Task Management
-- **开发者**: [你的姓名/团队名]
+- **简短名称**: plan-mcp-service
+- **MCP类型**: Tools
+- **分类**: Productivity / Task Management / Planning
+- **开发者**: [你的GitHub用户名]
 - **许可证**: MIT
+- **MCP协议版本**: MCP (FastMCP)
 
-### 简要描述
-一个通用的计划管理MCP服务，支持AI助手帮助用户创建、管理和跟踪各种类型的计划，包括旅行计划、学习计划、习惯养成和工作项目等。
+## 📝 描述
 
-### 核心功能
-- ✅ **创建计划**: 支持无限层级的树形任务结构
-- ✅ **批量操作**: 一次性创建复杂的多步骤计划
-- ✅ **状态管理**: pending/in_progress/completed/cancelled
-- ✅ **时间管理**: 支持计划时间和截止时间
-- ✅ **灵活元数据**: JSON格式存储自定义数据
-- ✅ **分类系统**: travel/study/habit/work/general
-- ✅ **持久存储**: SQLite本地数据库
+一个通用的计划管理MCP服务，支持AI助手帮助用户创建、管理和跟踪各种类型的计划。采用树形结构设计，支持无限层级嵌套，适用于旅行计划、学习计划、习惯养成、工作项目等场景。
 
-### 支持的工具
-1. `create_plan` - 创建顶级计划
-2. `add_step` - 添加子步骤
-3. `create_plan_batch` - 批量创建计划
-4. `list_plans` - 列出计划
-5. `get_plan_details` - 获取计划详情
-6. `update_plan_status` - 更新状态
-7. `reschedule_plan` - 重新安排时间
-8. `delete_plan` - 删除计划
+## 🛠️ 支持的工具
 
-### 项目链接
-- **GitHub仓库**: https://github.com/yourusername/plan-mcp-service
-- **PyPI包**: https://pypi.org/project/plan-mcp-service/
-- **文档**: https://github.com/yourusername/plan-mcp-service#readme
+| 工具名称 | 功能描述 | 参数 |
+|---------|---------|------|
+| `create_plan` | 创建顶级计划 | name, description, category, scheduled_at, deadline, metadata |
+| `add_step` | 添加子步骤到现有计划 | plan_id, name, description, scheduled_at, metadata |
+| `create_plan_batch` | 批量创建包含多步骤的计划 | name, children (JSON), category, description |
+| `list_plans` | 列出顶级计划，支持筛选 | category, status |
+| `get_plan_details` | 获取完整计划树结构 | plan_id |
+| `update_plan_status` | 更新计划状态 | plan_id, status |
+| `reschedule_plan` | 重新安排计划时间 | plan_id, new_time |
+| `delete_plan` | 删除计划及其子步骤 | plan_id |
 
-### 安装和配置
+## 🚀 服务器配置
 
-#### PyPI安装
+### 安装方式
+
+#### PyPI安装（推荐）
 ```bash
 pip install plan-mcp-service
 ```
 
-#### Claude Desktop配置
+#### GitHub安装
+```bash
+pip install git+https://github.com/yourusername/plan-mcp-service.git
+```
+
+### Claude Desktop 配置
+
+#### 基础配置（使用uv - 推荐）
+```json
+{
+  "mcpServers": {
+    "plan-manager": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/plan_mcp_service",
+        "run",
+        "python",
+        "-m",
+        "plan_mcp_service.server"
+      ]
+    }
+  }
+}
+```
+
+#### PyPI安装后的配置
 ```json
 {
   "mcpServers": {
@@ -54,9 +83,113 @@ pip install plan-mcp-service
 }
 ```
 
-#### GitHub安装
+#### 直接Python运行配置
+```json
+{
+  "mcpServers": {
+    "plan-manager": {
+      "command": "python3",
+      "args": [
+        "-m",
+        "plan_mcp_service.server"
+      ]
+    }
+  }
+}
+```
+
+## 🎯 核心特性
+
+- ✅ **无限层级**: 树形任务结构，支持Plan -> Step -> Sub-step无限嵌套
+- ✅ **批量操作**: 一次性创建复杂计划（21天挑战、一周计划等）
+- ✅ **状态管理**: pending/in_progress/completed/cancelled四种状态
+- ✅ **时间管理**: 支持计划时间和截止时间（ISO 8601格式）
+- ✅ **灵活元数据**: JSON格式存储自定义数据（预算、地点、资源链接等）
+- ✅ **分类系统**: travel/study/habit/work/general多种预设类别
+- ✅ **持久存储**: SQLite本地数据库，数据安全可靠
+- ✅ **高性能**: 基于FastMCP框架，响应迅速
+
+## 🔗 项目链接
+
+- **GitHub仓库**: https://github.com/yourusername/plan-mcp-service
+- **PyPI包**: https://pypi.org/project/plan-mcp-service/
+- **文档**: https://github.com/yourusername/plan-mcp-service#readme
+- **许可证**: https://github.com/yourusername/plan-mcp-service/blob/main/LICENSE
+
+## 💡 使用场景
+
+- 🗺️ **旅行计划**: 创建包含预算、地点、时间安排的详细旅行计划
+- 📚 **学习计划**: 制定结构化的学习进度和打卡系统  
+- 🎯 **习惯养成**: 21天挑战或多阶段习惯培养计划
+- 💼 **项目管理**: 工作项目的任务分解和进度跟踪
+- 🏋️ **健身计划**: 运动计划安排和目标管理
+
+## 🛡️ 技术规格
+
+- **编程语言**: Python 3.10+
+- **框架**: FastMCP (Model Context Protocol)
+- **数据库**: SQLite3
+- **依赖**: mcp[cli]>=1.0.0
+- **兼容性**: Claude Desktop, 支持MCP协议的AI助手
+
+## ⚙️ 安装要求
+
+- Python 3.10+
+- 网络连接（用于安装依赖）
+- 约5MB磁盘空间
+
+## 📊 测试状态
+
+- ✅ 本地测试通过
+- ✅ Claude Desktop兼容测试
+- ✅ 跨平台兼容性验证（Windows/macOS/Linux）
+
+## 📝 备注
+
+- 开源项目，MIT许可证
+- 持续维护，欢迎贡献
+- 支持中文和英文
+- 无需API密钥或外部服务依赖
+```
+
+### 安装和配置
+
+#### 方式一：使用uv（推荐）
+```bash
+# 克隆仓库
+git clone https://github.com/yourusername/plan-mcp-service.git
+cd plan-mcp-service
+# 使用uv运行
+uv run python -m plan_mcp_service.server
+```
+
+#### 方式二：PyPI安装
+```bash
+pip install plan-mcp-service
+```
+
+#### 方式三：GitHub安装
 ```bash
 pip install git+https://github.com/yourusername/plan-mcp-service.git
+```
+
+#### Claude Desktop配置（推荐 - uv方式）
+```json
+{
+  "mcpServers": {
+    "plan-manager": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/plan_mcp_service",
+        "run",
+        "python",
+        "-m",
+        "plan_mcp_service.server"
+      ]
+    }
+  }
+}
 ```
 
 ### 使用示例
