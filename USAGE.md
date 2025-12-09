@@ -138,6 +138,36 @@ validate_and_save_plan(
 backup_plans()
 ```
 
+## 🚫 取消旅行计划功能
+
+### 批量取消旅行计划
+```python
+# 当时间变动时取消所有旅行计划
+cancel_travel_plan(reason="时间变动", keyword="旅行")
+
+# 自定义原因取消
+cancel_travel_plan(reason="疫情影响", keyword="出国")
+```
+
+## 📝 日志功能
+
+### 查看操作日志
+```python
+# 查看最近20条操作日志
+get_operation_logs()
+
+# 查看最近50条日志
+get_operation_logs(limit=50)
+```
+
+### 日志记录内容
+- ✅ 计划创建成功
+- ✏️ 计划更新成功  
+- 🗑️ 计划删除成功
+- 🚫 批量取消旅行计划
+- ✈️ 旅行计划取消
+- ❌ 操作失败记录
+
 ## 数据库
 
 系统使用SQLite数据库，数据文件自动创建在项目目录下的 `plans.db`。

@@ -74,6 +74,10 @@ class SQLiteDB:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # 如果没有指定scheduled_at，默认使用当前日期
+        if scheduled_at is None:
+            scheduled_at = datetime.now().strftime("%Y-%m-%d")
+        
         metadata_json = json.dumps(metadata) if metadata else None
         
         cursor.execute('''
@@ -88,7 +92,7 @@ class SQLiteDB:
         conn.close()
         
         # 记录创建日志
-        log_msg = f"✅ 计划创建成功 - ID:{item_id} 名称:{name} 类别:{category} 父计划:{parent_id}"
+        log_msg = f"✅ 计划创建成功 - ID:{item_id} 名称:{name} 类别:{category} 父计划:{parent_id} 开始时间:{scheduled_at}"
         logger.info(log_msg)
         print(log_msg)
         
@@ -485,6 +489,121 @@ def reschedule_plan(plan_id: int, new_time: str) -> str:
     if success:
         return f"Item {plan_id} rescheduled to {new_time}."
     return f"Item {plan_id} not found."
+
+@mcp.tool()
+def delete_plan_by_name(plan_name: str) -> str:
+    """
+    按名称删除计划（级联删除所有子计划）- 适合语音交互
+    
+    Args:
+        plan_name: 要删除的计划名称（支持模糊匹配）
+    """
+    try:
+        # 搜索匹配的计划
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        
+        # 首先尝试精确匹配
+        cursor.execute('SELECT id, name FROM plans WHERE name = ? AND parent_id IS NULL', (plan_name,))
+        exact_matches = cursor.fetchall()
+        
+        if len(exact_matches) == 1:
+            # 精确匹配到一个计划
+            plan_id = exact_matches[0][0]
+            exact_name = exact_matches[0][1]
+            conn.close()
+            
+            # 调用原有的删除函数
+            result = delete_plan(plan_id)
+            return f"✅ 精确匹配并删除计划: '{exact_name}'\n\n{result}"
+        
+        # 如果没有精确匹配，尝试模糊匹配
+        cursor.execute('''
+            SELECT id, name, category, status FROM plans 
+            WHERE name LIKE ? AND parent_id IS NULL 
+            ORDER BY name
+        ''', (f'%{plan_name}%',))
+        
+        fuzzy_matches = cursor.fetchall()
+        conn.close()
+        
+        if not exact_matches and not fuzzy_matches:
+            return f"""
+❌ 未找到名称包含 '{plan_name}' 的计划
+
+🔍 搜索结果:
+  • 精确匹配: 0 个
+  • 模糊匹配: 0 个
+
+💡 建议:
+  • 检查计划名称是否正确
+  • 使用 list_plans() 查看所有可用计划
+  • 尝试使用更短的关键词
+            """.strip()
+        
+        if len(exact_matches) == 0 and len(fuzzy_matches) == 1:
+            # 模糊匹配只有一个结果，直接删除
+            plan_id = fuzzy_matches[0][0]
+            matched_name = fuzzy_matches[0][1]
+            conn = sqlite3.connect(db.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM plans WHERE id = ?", (plan_id,))
+            conn.commit()
+            conn.close()
+            
+            log_msg = f"✅ 按名称删除成功 - 名称:{matched_name} ID:{plan_id}"
+            logger.info(log_msg)
+            print(log_msg)
+            
+            return f"""
+✅ 模糊匹配并删除计划: '{matched_name}'
+
+📋 删除信息:
+  • 搜索关键词: '{plan_name}'
+  • 匹配计划ID: {plan_id}
+  • 实际删除名称: '{matched_name}'
+
+💾 数据已从SQLite数据库删除
+📝 操作日志已记录
+            """.strip()
+        
+        # 多个匹配项，让用户选择
+        result = f"""
+🔍 找到多个匹配的计划，请更精确地指定名称:
+
+搜索关键词: '{plan_name}'
+
+📋 匹配的计划:
+"""
+        
+        if exact_matches:
+            result += "\n🎯 精确匹配:"
+            for plan_id, name in exact_matches:
+                result += f"\n  • [{plan_id}] {name} (精确匹配)"
+        
+        if fuzzy_matches:
+            result += "\n🔍 模糊匹配:"
+            for plan_id, name, category, status in fuzzy_matches:
+                if not any(plan_id == match[0] for match in exact_matches):
+                    result += f"\n  • [{plan_id}] {name} ({category}) - {status}"
+        
+        result += f"""
+
+💡 使用方法:
+  • 使用完整名称进行精确匹配
+  • 或者使用 delete_plan(ID) 通过ID删除
+  • 或者使用 list_plans() 查看所有计划
+
+🗣️ 语音交互提示: 请说出完整的计划名称，例如"删除云南旅行计划"
+        """.strip()
+        
+        return result
+        
+    except Exception as e:
+        log_msg = f"❌ 按名称删除失败 - 关键词:{plan_name} 错误:{str(e)}"
+        logger.error(log_msg)
+        print(log_msg)
+        return f"❌ 删除过程中发生错误: {str(e)}"
 
 @mcp.tool()
 def delete_plan(plan_id: int) -> str:
@@ -1288,6 +1407,7 @@ if __name__ == "__main__":
     print("    • 重新安排时间 (reschedule_plan)")
     print("    • 预览删除 (preview_delete_plan)")
     print("    • 删除计划 (delete_plan)")
+    print("    • 按名称删除 (delete_plan_by_name) 🗣️ 语音友好")
     print("    • 取消旅行计划 (cancel_travel_plan)")
     print("    • 修复旧日期 (fix_old_dates)")
     print("    • 引导式创建 (guided_plan_creation)")
