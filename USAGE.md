@@ -111,6 +111,33 @@ get_plan_statistics()
 delete_plan(plan_id=1)
 ```
 
+## 🎯 引导式创建功能
+
+### 使用引导创建计划
+```python
+# 获取创建指南
+guided_plan_creation(plan_type="travel")
+
+# 可选类型:
+# - general: 通用计划
+# - travel: 旅行计划
+# - study: 学习计划
+```
+
+### 验证并保存计划
+```python
+validate_and_save_plan(
+    name="我的新计划",
+    plan_data='{"description": "这是一个测试计划", "category": "工作"}',
+    auto_save=True
+)
+```
+
+### 备份数据
+```python
+backup_plans()
+```
+
 ## 数据库
 
 系统使用SQLite数据库，数据文件自动创建在项目目录下的 `plans.db`。
