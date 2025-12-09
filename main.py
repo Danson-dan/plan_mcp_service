@@ -274,16 +274,17 @@ def add_step(
     Add a step (sub-task) to an existing plan.
     
     Args:
-        plan_id: The ID of the parent plan.
-        name: The name of the step.
-        description: Details about this step.
-        scheduled_at: When this step should be done (ISO 8601).
-        metadata: JSON string for extra data.
+       plan_id：父计划的id。
+        name:步骤的名称。
+        description:有关此步骤的详细信息。
+        scheduled_at：何时应该完成此步骤（ISO 8601）。
+        元数据：用于额外数据的JSON字符串。
     """
     # Verify parent exists
     parent = db.get_item(plan_id)
     if not parent:
         return f"Error: Plan with ID {plan_id} not found."
+    print("准备创建计划！～～～")
 
     meta_dict = {}
     if metadata:
@@ -300,7 +301,10 @@ def add_step(
         scheduled_at=scheduled_at,
         metadata=meta_dict
     )
+    print("创建成功！～～～～")
     return f"Step added to plan {plan_id}. Step ID: {item_id}"
+    
+    
 
 @mcp.tool()
 def create_plan_batch(
