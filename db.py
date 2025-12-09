@@ -1,7 +1,7 @@
 import sqlite3
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 DB_PATH = "plans.db"
 
@@ -44,11 +44,11 @@ def init_db():
 
 def create_item(
     name: str,
-    parent_id: Optional[int] = None,
-    description: Optional[str] = None,
+    parent_id: int | None = None,
+    description: str | None = None,
     category: str = "general",
-    scheduled_at: Optional[str] = None,
-    deadline: Optional[str] = None,
+    scheduled_at: str | None = None,
+    deadline: str | None = None,
     metadata: Dict[str, Any] = None
 ) -> int:
     """Create a new item (plan/task/step)."""
@@ -78,7 +78,7 @@ def create_item(
     conn.close()
     return item_id
 
-def get_item(item_id: int) -> Optional[Dict[str, Any]]:
+def get_item(item_id: int) -> Dict[str, Any] | None:
     """Get a single item by ID."""
     conn = get_db_connection()
     item = conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
@@ -135,10 +135,10 @@ def delete_item(item_id: int) -> bool:
     return rows > 0
 
 def query_items(
-    parent_id: Optional[int] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    date_range: Optional[tuple] = None # (start, end)
+    parent_id: int | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    date_range: tuple | None = None # (start, end)
 ) -> List[Dict[str, Any]]:
     """Query items with flexible filters."""
     query = "SELECT * FROM items WHERE 1=1"
@@ -169,7 +169,7 @@ def query_items(
     
     return [dict(row) for row in rows]
 
-def get_tree(root_id: int) -> Dict[str, Any]:
+def get_tree(root_id: int) -> Dict[str, Any] | None:
     """Get a recursive tree view of a plan."""
     root = get_item(root_id)
     if not root:

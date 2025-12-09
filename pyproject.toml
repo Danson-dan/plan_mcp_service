@@ -1,45 +1,9 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
-name = "plan-mcp-service"
+name = "plan-server-mcp"
 version = "0.1.0"
-description = "A Universal Plan Manager MCP Service for managing tasks, habits, and schedules via LLMs."
+description = "Add your description here"
 readme = "README.md"
-license = "MIT"
-requires-python = ">=3.10"
-authors = [
-    {name = "Your Name", email = "your.email@example.com"}
-]
-keywords = ["mcp", "plan-manager", "task-management", "llm", "ai"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
+requires-python = ">=3.14"
 dependencies = [
-    "mcp[cli]>=1.0.0",
+    "mcp[cli]>=1.23.1",
 ]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-]
-
-[project.scripts]
-plan-mcp-service = "plan_mcp_service.server:main"
-
-[project.urls]
-Homepage = "https://github.com/yourusername/plan-mcp-service"
-Repository = "https://github.com/yourusername/plan-mcp-service"
-Documentation = "https://github.com/yourusername/plan-mcp-service#readme"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/plan_mcp_service"]

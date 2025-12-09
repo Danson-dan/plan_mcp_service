@@ -1,8 +1,0 @@
-include README.md
-include LICENSE
-include pyproject.toml
-recursive-include src/plan_mcp_service *.py
-global-exclude *.pyc
-global-exclude __pycache__
-global-exclude .git*
-prune .git
