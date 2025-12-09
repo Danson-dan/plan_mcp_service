@@ -12,8 +12,21 @@ from mcp.server.fastmcp import FastMCP
 import json
 import sqlite3
 import os
+import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
+
+# 配置日志系统
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('plan_manager.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ],
+    force=True  # 强制重新配置，确保生效
+)
+logger = logging.getLogger(__name__)
 
 # SQLite数据库管理类
 class SQLiteDB:
@@ -73,6 +86,11 @@ class SQLiteDB:
         item_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        
+        # 记录创建日志
+        log_msg = f"✅ 计划创建成功 - ID:{item_id} 名称:{name} 类别:{category} 父计划:{parent_id}"
+        logger.info(log_msg)
+        print(log_msg)
         
         return item_id
     
@@ -158,18 +176,31 @@ class SQLiteDB:
         if not self.get_item(item_id):
             return False
         
+        # 获取更新前的信息用于日志
+        old_info = self.get_item(item_id)
+        
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         # 准备更新字段
         update_fields = []
         params = []
+        update_details = []
         
         for key, value in kwargs.items():
             if key in ['name', 'description', 'category', 'parent_id', 
                       'scheduled_at', 'deadline', 'status']:
                 update_fields.append(f"{key} = ?")
                 params.append(value)
+                
+                # 记录更新详情
+                if key == 'status':
+                    update_details.append(f"状态: {old_info.get('status')} → {value}")
+                elif key == 'name':
+                    update_details.append(f"名称: {old_info.get('name')} → {value}")
+                elif key == 'scheduled_at':
+                    update_details.append(f"时间: {old_info.get('scheduled_at')} → {value}")
+                    
             elif key == 'metadata':
                 update_fields.append("metadata = ?")
                 params.append(json.dumps(value) if value else None)
@@ -181,14 +212,25 @@ class SQLiteDB:
             query = f"UPDATE plans SET {', '.join(update_fields)} WHERE id = ?"
             cursor.execute(query, params)
             conn.commit()
+            
+            # 记录更新日志
+            update_str = ", ".join(update_details)
+            log_msg = f"✏️ 计划更新成功 - ID:{item_id} {update_str}"
+            logger.info(log_msg)
+            print(log_msg)
         
         conn.close()
         return True
     
     def delete_item(self, item_id: int) -> bool:
         """删除计划项（级联删除子项）"""
-        if not self.get_item(item_id):
+        # 获取删除前的信息用于日志
+        plan_info = self.get_item(item_id)
+        if not plan_info:
             return False
+        
+        # 统计将被删除的计划数量
+        total_count = self.get_plan_tree_count(item_id)
         
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -201,6 +243,11 @@ class SQLiteDB:
         
         conn.commit()
         conn.close()
+        
+        # 记录删除日志
+        log_msg = f"🗑️ 计划删除成功 - ID:{item_id} 名称:{plan_info['name']} 类别:{plan_info['category']} 共删除:{total_count}个计划"
+        logger.info(log_msg)
+        print(log_msg)
         
         return affected_rows > 0
     
@@ -245,6 +292,33 @@ def create_plan(
         deadline: 计划应何时完成（ISO 8601格式：YYYY-MM-DD）.
         metadata: 包含额外数据的JSON字符串（例如，“{“budget”：500}”）.
     """
+    # 验证日期格式和合理性
+    if scheduled_at or deadline:
+        from datetime import datetime
+        
+        try:
+            current_year = datetime.now().year
+            
+            if scheduled_at:
+                scheduled_dt = datetime.strptime(scheduled_at, "%Y-%m-%d")
+                if scheduled_dt.year < current_year:
+                    return f"❌ 日期验证失败：开始日期 {scheduled_at} 的年份 {scheduled_dt.year} 早于当前年份 {current_year}，请使用合理的日期。"
+                    
+            if deadline:
+                deadline_dt = datetime.strptime(deadline, "%Y-%m-%d")
+                if deadline_dt.year < current_year:
+                    return f"❌ 日期验证失败：截止日期 {deadline} 的年份 {deadline_dt.year} 早于当前年份 {current_year}，请使用合理的日期。"
+                    
+            # 如果同时提供了两个日期，检查逻辑
+            if scheduled_at and deadline:
+                scheduled_dt = datetime.strptime(scheduled_at, "%Y-%m-%d")
+                deadline_dt = datetime.strptime(deadline, "%Y-%m-%d")
+                if scheduled_dt >= deadline_dt:
+                    return f"❌ 日期逻辑错误：开始日期 {scheduled_at} 必须早于截止日期 {deadline}"
+                    
+        except ValueError as e:
+            return f"❌ 日期格式错误：请使用 YYYY-MM-DD 格式，例如 2025-01-01。错误详情：{str(e)}"
+    
     meta_dict = {}
     if metadata:
         try:
@@ -320,7 +394,7 @@ def create_plan_batch(
     Args:
         name: Name of the main plan.
         children: A JSON string representing a LIST of step objects.
-                  Example: '[{"name": "Day 1", "scheduled_at": "2023-10-01"}, {"name": "Day 2"}]'
+                  Example: '[{"name": "Day 1", "scheduled_at": "2025-12-25"}, {"name": "Day 2"}]'
         category: Category for the plan and all children.
     """
     try:
@@ -431,6 +505,9 @@ def delete_plan(plan_id: int) -> str:
     try:
         success = db.delete_item(plan_id)
         if success:
+            log_msg = f"✅ 计划删除成功 - 主计划ID:{plan_id} 名称:{plan['name']} 总删除数量:{total_count}"
+            logger.info(log_msg)
+            print(log_msg)
             return f"""
 ✅ 计划删除成功！
 
@@ -444,11 +521,141 @@ def delete_plan(plan_id: int) -> str:
 {json.dumps(plan_tree, indent=2, ensure_ascii=False)}
 
 💾 已从SQLite数据库中永久删除
+📝 日志已记录到 plan_manager.log
             """.strip()
         else:
+            log_msg = f"❌ 删除计划失败 - ID:{plan_id}"
+            logger.error(log_msg)
+            print(log_msg)
             return f"❌ 删除计划 {plan_id} 失败。"
     except Exception as e:
+        log_msg = f"❌ 删除过程异常 - ID:{plan_id} 错误:{str(e)}"
+        logger.error(log_msg)
+        print(log_msg)
         return f"❌ 删除过程中发生错误: {str(e)}"
+
+@mcp.tool()
+def cancel_travel_plan(reason: str = "时间变动", keyword: str = None) -> str:
+    """
+    取消旅行计划 - 当用户时间变动时批量删除所有旅行相关计划
+    
+    Args:
+        reason: 取消原因（默认为"时间变动"）
+        keyword: 搜索关键词（默认搜索"旅行"相关的计划）
+    """
+    search_keyword = keyword or "旅行"
+    
+    try:
+        # 搜索旅行相关计划
+        travel_plans = db.query_items(category="旅行")
+        
+        if not travel_plans:
+            return f"""
+✅ 没有找到需要取消的旅行计划
+
+🔍 搜索条件:
+  • 关键词: {search_keyword}
+  • 类别: 旅行
+  
+💡 当前没有符合条件的旅行计划需要取消
+            """.strip()
+        
+        # 统计即将删除的计划
+        total_plans = 0
+        plans_details = []
+        
+        for plan in travel_plans:
+            plan_count = db.get_plan_tree_count(plan['id'])
+            total_plans += plan_count
+            plans_details.append({
+                'id': plan['id'],
+                'name': plan['name'],
+                'count': plan_count
+            })
+        
+        # 开始批量删除
+        deleted_count = 0
+        deleted_plans = []
+        
+        for plan_detail in plans_details:
+            try:
+                success = db.delete_item(plan_detail['id'])
+                if success:
+                    deleted_count += 1
+                    deleted_plans.append(plan_detail['name'])
+                    log_msg = f"✈️ 旅行计划已取消 - ID:{plan_detail['id']} 名称:{plan_detail['name']} 原因:{reason}"
+                    logger.info(log_msg)
+                    print(log_msg)
+            except Exception as e:
+                log_msg = f"❌ 旅行计划取消失败 - ID:{plan_detail['id']} 错误:{str(e)}"
+                logger.error(log_msg)
+                print(log_msg)
+        
+        # 记录批量取消操作
+        log_msg = f"🚫 批量取消旅行计划完成 - 原因:{reason} 删除计划数:{total_plans} 成功数:{deleted_count}"
+        logger.info(log_msg)
+        print(log_msg)
+        
+        return f"""
+🚫 旅行计划批量取消完成！
+
+📋 取消详情:
+  • 取消原因: {reason}
+  • 搜索关键词: {search_keyword}
+  • 发现旅行计划: {len(travel_plans)} 个
+  • 总删除数量: {total_plans} 个计划（包含子计划）
+  • 成功删除: {deleted_count} 个主计划
+
+🗂️ 已取消的旅行计划:
+{chr(10).join([f"  • ✅ {name}" for name in deleted_plans])}
+
+💾 所有相关数据已从SQLite数据库删除
+📝 操作日志已记录到 plan_manager.log
+
+💡 如需恢复数据，请使用备份功能或查看日志记录
+        """.strip()
+        
+    except Exception as e:
+        log_msg = f"❌ 批量取消旅行计划失败 - 错误:{str(e)}"
+        logger.error(log_msg)
+        print(log_msg)
+        return f"❌ 取消旅行计划时发生错误: {str(e)}"
+
+@mcp.tool()
+def get_operation_logs(limit: int = 20) -> str:
+    """
+    获取操作日志记录
+    
+    Args:
+        limit: 显示最近的日志条数（默认20条）
+    """
+    try:
+        with open('plan_manager.log', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            
+        if not lines:
+            return "📝 暂无操作日志"
+        
+        # 获取最近的日志
+        recent_lines = lines[-limit:] if len(lines) > limit else lines
+        
+        log_content = "📋 最近操作日志:\n"
+        log_content += "=" * 50 + "\n"
+        
+        for line in recent_lines:
+            if any(keyword in line for keyword in ['✅', '❌', '✏️', '🗑️', '🚫', '✈️']):
+                log_content += line.strip() + "\n"
+        
+        log_content += "=" * 50 + "\n"
+        log_content += f"📄 显示最近 {len(recent_lines)} 条记录\n"
+        log_content += f"📁 完整日志文件: plan_manager.log"
+        
+        return log_content.strip()
+        
+    except FileNotFoundError:
+        return "📝 日志文件不存在"
+    except Exception as e:
+        return f"❌ 读取日志失败: {str(e)}"
 
 @mcp.tool()
 def preview_delete_plan(plan_id: int) -> str:
@@ -531,6 +738,30 @@ def create_travel_plan(
         budget: 预算金额
         description: 旅行描述
     """
+    from datetime import datetime
+    
+    # 验证日期格式和合理性
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        current_year = datetime.now().year
+        
+        # 检查年份是否合理
+        if start_dt.year < current_year or end_dt.year < current_year:
+            return f"❌ 日期验证失败：日期年份不能早于当前年份 {current_year}，请检查开始日期 {start_date} 和结束日期 {end_date}"
+            
+        # 检查日期逻辑
+        if start_dt >= end_dt:
+            return f"❌ 日期逻辑错误：开始日期 {start_date} 必须早于结束日期 {end_date}"
+            
+        # 检查旅行时长是否合理（最多365天）
+        travel_days = (end_dt - start_dt).days
+        if travel_days > 365:
+            return f"❌ 旅行时长过长：{travel_days} 天，建议合理规划行程"
+            
+    except ValueError as e:
+        return f"❌ 日期格式错误：请使用 YYYY-MM-DD 格式，例如 2025-01-01。错误详情：{str(e)}"
+    
     metadata = {"destination": destination, "budget": budget}
     if budget:
         metadata["budget"] = budget
@@ -582,7 +813,23 @@ def create_study_plan(
         start_date: 开始日期 (YYYY-MM-DD)
         description: 学习计划描述
     """
-    from datetime import datetime
+    from datetime import datetime, timedelta
+    
+    # 验证日期格式和合理性
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        current_year = datetime.now().year
+        
+        # 检查年份是否合理（不能是过去的年份，允许当前年份和未来年份）
+        if start_dt.year < current_year:
+            return f"❌ 日期验证失败：开始日期 {start_date} 的年份 {start_dt.year} 早于当前年份 {current_year}，请使用合理的日期。"
+            
+        # 检查学习周期是否合理
+        if duration_weeks <= 0 or duration_weeks > 52:  # 最多一年
+            return f"❌ 参数验证失败：学习周期应该是 1-52 周，当前为 {duration_weeks} 周"
+            
+    except ValueError as e:
+        return f"❌ 日期格式错误：{start_date}，请使用 YYYY-MM-DD 格式，例如 2025-01-01"
     
     parent_id = db.create_item(
         name=f"{subject}学习计划",
@@ -860,6 +1107,104 @@ def validate_and_save_plan(
         return f"❌ 验证错误: {str(e)}"
 
 @mcp.tool()
+def fix_old_dates(year: str = "2025") -> str:
+    """
+    修复过去的日期 - 将指定年份之前的计划日期更新为指定年份
+    
+    Args:
+        year: 目标年份（默认为"2025"）
+    """
+    try:
+        from datetime import datetime
+        
+        # 获取所有scheduled_at或deadline为过去的计划
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        
+        current_year = str(datetime.now().year)
+        target_year = year or current_year
+        
+        # 查找有2023年或更早日期的计划
+        cursor.execute('''
+            SELECT id, name, scheduled_at, deadline 
+            FROM plans 
+            WHERE scheduled_at < ? OR deadline < ?
+        ''', (f"{target_year}-01-01", f"{target_year}-01-01"))
+        
+        old_plans = cursor.fetchall()
+        
+        if not old_plans:
+            return f"✅ 没有找到需要修复的日期数据（{target_year}年之前的日期）"
+        
+        fixed_count = 0
+        fixed_details = []
+        
+        for plan_id, name, scheduled_at, deadline in old_plans:
+            new_scheduled_at = None
+            new_deadline = None
+            
+            # 修复scheduled_at
+            if scheduled_at and scheduled_at < f"{target_year}-01-01":
+                new_scheduled_at = scheduled_at.replace(scheduled_at.split('-')[0], target_year)
+                
+            # 修复deadline  
+            if deadline and deadline < f"{target_year}-01-01":
+                new_deadline = deadline.replace(deadline.split('-')[0], target_year)
+            
+            # 更新数据库
+            if new_scheduled_at or new_deadline:
+                update_fields = []
+                params = []
+                
+                if new_scheduled_at:
+                    update_fields.append("scheduled_at = ?")
+                    params.append(new_scheduled_at)
+                    
+                if new_deadline:
+                    update_fields.append("deadline = ?")
+                    params.append(new_deadline)
+                
+                params.append(plan_id)
+                
+                query = f"UPDATE plans SET {', '.join(update_fields)} WHERE id = ?"
+                cursor.execute(query, params)
+                
+                fixed_count += 1
+                fixed_details.append(f"• [{plan_id}] {name}: {scheduled_at}→{new_scheduled_at or scheduled_at}, {deadline}→{new_deadline or deadline}")
+        
+        conn.commit()
+        conn.close()
+        
+        # 记录修复日志
+        log_msg = f"🔧 日期修复完成 - 修复计划数:{fixed_count} 目标年份:{target_year}"
+        logger.info(log_msg)
+        print(log_msg)
+        
+        return f"""
+🔧 日期修复完成！
+
+📊 修复统计:
+  • 修复计划数: {fixed_count}
+  • 目标年份: {target_year}
+  • 修复规则: 将 {target_year} 年之前的日期替换为 {target_year} 年
+
+📋 修复详情:
+{chr(10).join(fixed_details[:10])}
+{f"...以及更多（共{fixed_count}个）" if fixed_count > 10 else ""}
+
+💾 数据已更新到SQLite数据库
+📝 修复日志已记录到 plan_manager.log
+
+💡 提示: 如果有误，可以重新运行此函数或使用备份恢复
+        """.strip()
+        
+    except Exception as e:
+        log_msg = f"❌ 日期修复失败 - 错误:{str(e)}"
+        logger.error(log_msg)
+        print(log_msg)
+        return f"❌ 修复过程中发生错误: {str(e)}"
+
+@mcp.tool()
 def backup_plans() -> str:
     """
     备份所有计划数据
@@ -943,9 +1288,15 @@ if __name__ == "__main__":
     print("    • 重新安排时间 (reschedule_plan)")
     print("    • 预览删除 (preview_delete_plan)")
     print("    • 删除计划 (delete_plan)")
+    print("    • 取消旅行计划 (cancel_travel_plan)")
+    print("    • 修复旧日期 (fix_old_dates)")
     print("    • 引导式创建 (guided_plan_creation)")
     print("    • 验证保存 (validate_and_save_plan)")
     print("    • 数据备份 (backup_plans)")
+    print("")
+    print("  📝 日志功能:")
+    print("    • 查看操作日志 (get_operation_logs)")
+    print("    • 自动记录所有操作")
     print("")
     print("  💾 数据功能:")
     print("    • 自动保存到SQLite数据库")
