@@ -131,7 +131,11 @@ class SQLiteDB:
         query = "SELECT * FROM plans WHERE 1=1"
         params = []
         
-        if parent_id is not None:
+        if parent_id is None:
+            # 查询顶级计划（parent_id IS NULL）
+            query += " AND parent_id IS NULL"
+        else:
+            # 查询指定父计划的子项
             query += " AND parent_id = ?"
             params.append(parent_id)
         
