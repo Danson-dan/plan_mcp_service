@@ -366,7 +366,6 @@ def add_step(
     parent = db.get_item(plan_id)
     if not parent:
         return f"Error: Plan with ID {plan_id} not found."
-    print("准备创建计划！～～～")
 
     meta_dict = {}
     if metadata:
@@ -383,7 +382,6 @@ def add_step(
         scheduled_at=scheduled_at,
         metadata=meta_dict
     )
-    print("创建成功！～～～～")
     return f"Step added to plan {plan_id}. Step ID: {item_id}"
     
     
@@ -865,17 +863,40 @@ def create_travel_plan(
     
     # 验证日期格式和合理性
     try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        current_year = datetime.now().year
+        today = datetime.now()
+        current_year = today.year
         
-        # 检查年份是否合理
-        if start_dt.year < current_year or end_dt.year < current_year:
-            return f"❌ 日期验证失败：日期年份不能早于当前年份 {current_year}，请检查开始日期 {start_date} 和结束日期 {end_date}"
+        # 处理开始日期
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        processed_start_date = start_date
+        
+        # 如果开始日期是今年的过去日期，自动修正为明年
+        if start_dt < today and start_dt.year == current_year:
+            if start_dt.month < today.month or (start_dt.month == today.month and start_dt.day < today.day):
+                new_start_dt = start_dt.replace(year=current_year + 1)
+                processed_start_date = new_start_dt.strftime("%Y-%m-%d")
+                start_dt = new_start_dt
+                logger.info(f"🔄 自动修正开始日期：{start_date} → {processed_start_date}（修正为明年）")
+        elif start_dt.year < current_year:
+            return f"❌ 日期验证失败：开始日期 {start_date} 的年份 {start_dt.year} 早于当前年份 {current_year}，请检查开始日期"
+        
+        # 处理结束日期
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        processed_end_date = end_date
+        
+        # 如果结束日期是今年的过去日期，自动修正为明年
+        if end_dt < today and end_dt.year == current_year:
+            if end_dt.month < today.month or (end_dt.month == today.month and end_dt.day < today.day):
+                new_end_dt = end_dt.replace(year=current_year + 1)
+                processed_end_date = new_end_dt.strftime("%Y-%m-%d")
+                end_dt = new_end_dt
+                logger.info(f"🔄 自动修正结束日期：{end_date} → {processed_end_date}（修正为明年）")
+        elif end_dt.year < current_year:
+            return f"❌ 日期验证失败：结束日期 {end_date} 的年份 {end_dt.year} 早于当前年份 {current_year}，请检查结束日期"
             
         # 检查日期逻辑
         if start_dt >= end_dt:
-            return f"❌ 日期逻辑错误：开始日期 {start_date} 必须早于结束日期 {end_date}"
+            return f"❌ 日期逻辑错误：开始日期 {processed_start_date} 必须早于结束日期 {processed_end_date}"
             
         # 检查旅行时长是否合理（最多365天）
         travel_days = (end_dt - start_dt).days
@@ -893,8 +914,8 @@ def create_travel_plan(
         name=f"{destination}旅行计划",
         description=description or f"前往{destination}的精彩旅程",
         category="旅行",
-        scheduled_at=start_date,
-        deadline=end_date,
+        scheduled_at=processed_start_date,
+        deadline=processed_end_date,
         metadata=metadata
     )
     
@@ -903,8 +924,8 @@ def create_travel_plan(
         {"name": "行前准备", "description": "办理签证、预订机票酒店"},
         {"name": "行程规划", "description": "制定详细行程安排"},
         {"name": "行李打包", "description": "准备必需物品"},
-        {"name": "出发", "scheduled_at": start_date},
-        {"name": "返程", "scheduled_at": end_date}
+        {"name": "出发", "scheduled_at": processed_start_date},
+        {"name": "返程", "scheduled_at": processed_end_date}
     ]
     
     created_count = 0
@@ -940,30 +961,43 @@ def create_study_plan(
     
     # 验证日期格式和合理性
     try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        current_year = datetime.now().year
+        # 处理相对日期或特殊值
+        processed_date = start_date
+        today = datetime.now()
         
-        # 检查年份是否合理（不能是过去的年份，允许当前年份和未来年份）
-        if start_dt.year < current_year:
-            return f"❌ 日期验证失败：开始日期 {start_date} 的年份 {start_dt.year} 早于当前年份 {current_year}，请使用合理的日期。"
+        # 如果日期是过去的日期但不是今年，可能用户输入错误
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        
+        # 检查是否是明显错误的日期（比如今年4月，但现在是12月）
+        if start_dt < today and start_dt.year == today.year:
+            # 如果是今年的过去日期，假设用户想要明年同一时间
+            if start_dt.month < today.month or (start_dt.month == today.month and start_dt.day < today.day):
+                new_dt = start_dt.replace(year=today.year + 1)
+                processed_date = new_dt.strftime("%Y-%m-%d")
+                logger.info(f"🔄 自动修正日期：{start_date} → {processed_date}（修正为明年）")
+            # 如果是今天，可以使用
+        elif start_dt.year < today.year:
+            return f"❌ 日期验证失败：开始日期 {start_date} 的年份 {start_dt.year} 早于当前年份 {today.year}，请使用合理的日期。"
             
         # 检查学习周期是否合理
         if duration_weeks <= 0 or duration_weeks > 52:  # 最多一年
             return f"❌ 参数验证失败：学习周期应该是 1-52 周，当前为 {duration_weeks} 周"
             
+        # 重新解析处理后的日期
+        start_dt = datetime.strptime(processed_date, "%Y-%m-%d")
+            
     except ValueError as e:
-        return f"❌ 日期格式错误：{start_date}，请使用 YYYY-MM-DD 格式，例如 2025-01-01"
+        return f"❌ 日期格式错误：{start_date}，请使用 YYYY-MM-DD 格式，例如 2025-01-01。错误详情：{str(e)}"
     
     parent_id = db.create_item(
         name=f"{subject}学习计划",
         description=description or f"系统学习{subject}，计划{duration_weeks}周完成",
         category="学习",
-        scheduled_at=start_date,
+        scheduled_at=processed_date,
         metadata={"subject": subject, "duration_weeks": duration_weeks}
     )
     
     # 按周创建学习步骤
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     created_count = 0
     
     for week in range(1, duration_weeks + 1):
